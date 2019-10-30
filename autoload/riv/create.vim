@@ -61,17 +61,17 @@ fun! s:expand_file_link(file) "{{{
             let tar = file
             let loc = file
     elseif riv#path#is_directory(file)
-        let tar = file 
+        let tar = file
         let loc = file.'index.html'
     else
         if riv#path#is_ext(file)
-            let tar = file 
-            let loc = fnamemodify(file, ':r').'.html' 
+            let tar = file
+            let loc = fnamemodify(file, ':r').'.html'
         elseif fnamemodify(file, ':e') == '' && riv#path#file_link_style() == 2
-            let tar = file 
+            let tar = file
             let loc = file.'index.html'
         else
-            let tar = file 
+            let tar = file
             let loc = file.'index.html'
         endif
     endif
@@ -85,7 +85,7 @@ fun! s:expand_link(word,...) "{{{
     if word=~ riv#ptn#link_file()
         return s:expand_file_link(word)
     else
-        if word =~ '^[[:alnum:]]\{40}$' && !a:0 
+        if word =~ '^[[:alnum:]]\{40}$' && !a:0
             " For github
             let loc = word
             let [ref, tar] = [word[:7].'_', '.. _' . word[:7].': ']
@@ -121,7 +121,7 @@ fun! s:expand_link(word,...) "{{{
 endfun "}}}
 
 fun! s:get_cWORD_obj() "{{{
-    " return current cWORD 
+    " return current cWORD
     " str, start ,end
     " NOTE: This is unicode compatible.
     let line = getline('.')
@@ -184,7 +184,7 @@ fun! riv#create#link(...) range "{{{
     let _loc = word
 
     " If it's a relative file path, then expand to PATH/index.rst
-    if riv#path#is_directory(_loc) 
+    if riv#path#is_directory(_loc)
         \ && riv#path#is_relative(_loc)
         let _loc = _loc . riv#path#idx_file()
         " remove the final slash
@@ -200,11 +200,11 @@ fun! riv#create#link(...) range "{{{
     if loc =~ '^\s*$' | return | endif
 
     let tar_line = tar.loc
-    
+
     " Change current line with Ref
     let line = substitute(line, '\%>'.(idx-1).'c.*\%<'.(end+1).'c', ref, '')
     call setline(row , line)
-    
+
     " Append target line
     if g:riv_create_link_pos == '$' && tar !~ '^__'
         if  getline(eof) =~ '\v^\s*$|^\.\.%(\s|$)'
@@ -224,7 +224,16 @@ endfun "}}}
 
 " scratch "{{{
 fun! riv#create#scratch() "{{{
-    call riv#file#split(riv#path#scratch_path() . strftime("%Y-%m-%d") . riv#path#ext())
+    let path = expand(riv#path#scratch_path() . strftime("%Y-%m-%d") . riv#path#ext())
+    let template_path = expand(riv#path#scratch_path() . "template.rst")
+
+    if !filereadable(path)
+        if filereadable(template_path)
+            let template_content = readfile(template_path)
+            call writefile(template_content, path)
+        endif
+    endif
+    call riv#file#split(path)
 endfun "}}}
 fun! s:format_src_index() "{{{
     " category scratch by month and format it 4 items a line
@@ -236,7 +245,7 @@ fun! s:format_src_index() "{{{
     "
     let dates = filter(map(copy(files), 'fnamemodify(v:val,'':t:r'')'),'v:val=~''[[:digit:]_-]\+'' ')
 
-    " create a years dictionary contains year dict, 
+    " create a years dictionary contains year dict,
     " which contains month dict, which contains days list
     let years = {}
     for date in dates
@@ -249,7 +258,7 @@ fun! s:format_src_index() "{{{
         endif
         call add(years[year][month], date)
     endfor
-    
+
     let lines = []
     for year in sort(keys(years))
         call add(lines, "Year ".year)
@@ -258,19 +267,19 @@ fun! s:format_src_index() "{{{
             call add(lines, "")
             call add(lines, s:months[month-1])
             call add(lines, repeat('-', strwidth(s:months[month-1])))
-            let line_lst = [] 
+            let line_lst = []
             for day in sort(years[year][month])
-                if riv#path#file_link_style() == 1 
-                    let f = printf("[[%s]]",day)
-                elseif riv#path#file_link_style() == 2 
-                    let f = printf(":doc:`%s`",day)
+                if riv#path#file_link_style() == 1
+                    let f = printf("* [[%s]]",day)
+                elseif riv#path#file_link_style() == 2
+                    let f = printf("* :doc:`%s`",day)
                 else
                     let f = printf("%s".riv#path#ext(),day)
                 endif
                 call add(line_lst, f)
-                if len(line_lst) == 4
+                if len(line_lst) == 1
                     call add(lines, join(line_lst, "    "))
-                    let line_lst = [] 
+                    let line_lst = []
                 endif
             endfor
             call add(lines, join(line_lst, "    "))
@@ -285,7 +294,7 @@ endfun "}}}
 fun! riv#create#view_scr() "{{{
     call s:format_src_index()
     let path = riv#path#scratch_path()
- 
+
     call riv#file#split(path . riv#path#idx_file() )
 endfun "}}}
 
@@ -294,7 +303,7 @@ fun! s:escape(str) "{{{
 endfun "}}}
 fun! s:escape_file_ptn(file) "{{{
     if riv#path#file_link_style() == 2
-        return   '\%(^\|\s\)\zs\[' . fnamemodify(s:escape(a:file), ':t:r') 
+        return   '\%(^\|\s\)\zs\[' . fnamemodify(s:escape(a:file), ':t:r')
                     \ . '\]\ze\%(\s\|$\)'
     else
         return   '\%(^\|\s\)\zs' . fnamemodify(s:escape(a:file), ':t')
@@ -304,11 +313,11 @@ endfun "}}}
 fun! riv#create#delete() "{{{
     let file = expand('%:p')
     if input("Deleting '".file."'\n Continue? (y/N)?") !~?"y"
-        return 
+        return
     endif
     let ptn = s:escape_file_ptn(file)
     call delete(file)
- 
+
     if riv#path#is_rel_to_root(file)
         let index = expand('%:p:h'). '/' . riv#path#idx_file()
         if filereadable(index)
@@ -331,12 +340,12 @@ fun! riv#create#foot() "{{{
     " DONE: 2012-06-10 get buf last footnote.
     " DONE: 2012-06-10 they should add at different position.
     "       current and last.
-    "   
+    "
     " put cursor in last line and start backward search.
     " get the last footnote and return.
 
     let id = riv#link#get_last_foot()[1] + 1
-    let line = getline('.') 
+    let line = getline('.')
 
     if line =~ s:p.table
         let tar = substitute(line,'\%' . col(".") . 'c' , ' ['.id.']_ ', '')
@@ -351,7 +360,7 @@ fun! riv#create#foot() "{{{
     let def = ".. [".id."] ".footnote
     call setline(line('.'),tar)
     call append(line('$'),def)
-    
+
 endfun "}}}
 fun! riv#create#date(...) "{{{
     if a:0 && a:1 == 1
@@ -382,7 +391,7 @@ fun! riv#create#git_commit_url() "{{{
 
     call append(line('.'), [ref])
 
-    if g:riv_create_link_pos == '$' 
+    if g:riv_create_link_pos == '$'
         let eof = line('$')
         if  getline(eof) =~ '\v^\s*$|^\.\.%(\s|$)'
             call append(eof, [tar.loc])
@@ -397,9 +406,9 @@ endfun "}}}
 fun! riv#create#wrap_inline(sign,mode) "{{{
     " We should consider when in visual mode and insert mode.
     " **This** is a Test
-    let region = a:mode == 'v' ? 'gv' : 'viW' 
+    let region = a:mode == 'v' ? 'gv' : 'viW'
     let recov = a:mode == 'v' ? "\<Esc>gv".(len(a:sign)*2).'l' : a:mode == 'n' ? "\<Esc>" : ''
-    exe 'norm!' region.'c'.a:sign."\<C-R>\"".a:sign.recov 
+    exe 'norm!' region.'c'.a:sign."\<C-R>\"".a:sign.recov
 endfun "}}}
 fun! riv#create#transition() "{{{
     let lines = ['','----','']
@@ -426,7 +435,7 @@ fun! s:load_cmd() "{{{
 endfun "}}}
 fun! riv#create#cmd_helper() "{{{
     " showing all cmds
-    
+
     let s:cmd = riv#helper#new()
     " let s:cmd.contents = s:load_cmd()
     let s:cmd.maps['<Enter>'] = 'riv#create#enter'
